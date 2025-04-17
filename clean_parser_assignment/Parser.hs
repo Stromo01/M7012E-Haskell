@@ -1,7 +1,7 @@
 module Parser(module CoreParser, T, digit, digitVal, chars, letter, err,
               lit, number, iter, accept, require, token,
               spaces, word, (-#), (#-)) where
-import Prelude hiding (return, fail)
+import Prelude hiding (return, fail,iterate)
 import Data.Char
 import CoreParser
 infixl 7 -#, #-
@@ -13,6 +13,10 @@ err message cs = error (message++" near "++cs++"\n")
 
 iter :: Parser a -> Parser [a]
 iter m = m # iter m >-> cons ! return []
+
+iterate :: Parser a -> Int -> Parser [a]
+iterate m 0 = return []
+iterate m i = m # iterate m (i-1) >-> uncurry(:)
 
 cons(a, b) = a:b
 
@@ -35,10 +39,10 @@ word :: Parser String
 word = token (letter # iter letter >-> cons)
 
 chars :: Int -> Parser String -- Accepts a string of length n
-chars n = token (iter (char ? isAlpha) >-> take n)
+chars n = token (iterate (char ? isAlpha) n)
 
 accept :: String -> Parser String
-accept w = token (chars (length w)) ? (==w)
+accept w = token (iterate char (length w)) ? (==w)
 
 require :: String -> Parser String -- accepts w and reports the error
 require w = accept w ! err ("Expected: " ++ w)
