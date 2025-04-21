@@ -51,14 +51,34 @@ writeStmt :: Parser Statement
 writeStmt = accept "write" -# Expr.parse #- require ";" >-> Write
 
 exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
+exec [] _ _ = []
+
 exec (If cond thenStmts elseStmts : stmts) dict input =
   if (Expr.value cond dict) > 0
     then exec (thenStmts : stmts) dict input
     else exec (elseStmts : stmts) dict input
 
-parseStatement :: Parser Statement
-parseStatement = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt
+exec (Skip : stmts) dict input = exec stmts dict input -- Skip, continue with the next statement
 
+exec (Begin innerStmts : stmts) dict input = exec (innerStmts ++ stmts) dict input -- execute all statements in the block, then continue
+
+exec (While cond stmt : stmts) dict input =
+  if (Expr.value cond dict) > 0
+    then exec (stmt : While cond stmt : stmts) dict input -- execute the statement and check the condition again
+    else exec stmts dict input -- condition is false, continue with the next statement
+
+exec (Assignment var expr : stmts) dict input =
+  let value = Expr.value expr dict
+      newDict = Dictionary.insert (var, value) dict -- update the dictionary with the new value
+   in exec stmts newDict input -- continue with the next statement
+
+exec (Read var : stmts) dict (i : input) = exec stmts (Dictionary.insert (var, i) dict) input
+
+exec (Write expr : stmts) dict input =
+  let value = Expr.value expr dict
+   in value : exec stmts dict input -- output the value and continue with the next statement
+
+   
 instance Parse Statement where
-  parse = parseStatement
+  parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt
   toString = error "Statement.toString not implemented"
