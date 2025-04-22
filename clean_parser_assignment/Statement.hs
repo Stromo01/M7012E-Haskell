@@ -6,6 +6,7 @@ import Distribution.Simple.Setup (BuildFlags (BuildFlags))
 import Expr qualified
 import Parser hiding (T)
 import Prelude hiding (fail, return)
+import GHC.Generics (Generic(Rep))
 
 type T = Statement
 
@@ -17,6 +18,7 @@ data Statement
   | While Expr.T Statement -- 'while' expr 'do' statement
   | Read String -- 'read' variable ';'
   | Write Expr.T -- 'write' expr ';'
+  | Repeat [Statement] Expr.T -- 'repeat' statements 'until' expr ';'
   deriving (Show)
 
 newtype Statements = Statements [Statement] deriving (Show)
@@ -50,6 +52,12 @@ readStmt = accept "read" -# word #- require ";" >-> Read
 writeStmt :: Parser Statement
 writeStmt = accept "write" -# Expr.parse #- require ";" >-> Write
 
+repeatStmt :: Parser Statement
+repeatStmt = (accept "repeat" -# iter parse #- require "until" # Expr.parse) >-> buildRepeat
+
+buildRepeat :: ([Statement], Expr.T) -> Statement
+buildRepeat (stmts, cond) = Repeat stmts cond
+
 exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
 exec [] _ _ = []
 
@@ -78,9 +86,15 @@ exec (Write expr : stmts) dict input =
   let value = Expr.value expr dict
    in value : exec stmts dict input -- output the value and continue with the next statement
 
+exec (Repeat stmts cond : rest) dict input =
+  let value = Expr.value cond dict
+   in if value > 0
+        then exec (stmts ++ Repeat stmts cond : rest) dict input -- execute the statements and check the condition again
+        else exec rest dict input -- condition is false, continue with the next statement
+
    
 instance Parse Statement where
-  parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt
+  parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt ! repeatStmt
   toString (Assignment var expr) = var ++ " := " ++ Expr.toString expr ++ ";\n"
   toString Skip = "skip;\n"
   toString (Begin stmts) = "begin\n" ++ concatMap toString stmts ++ "end\n"
@@ -90,3 +104,5 @@ instance Parse Statement where
     "while " ++ Expr.toString cond ++ " do\n" ++ toString stmt
   toString (Read var) = "read " ++ var ++ ";\n"
   toString (Write expr) = "write " ++ Expr.toString expr ++ ";\n"
+  toString (Repeat stmts cond) =
+    "repeat\n" ++ concatMap toString stmts ++ "until " ++ Expr.toString cond ++ ";\n"
