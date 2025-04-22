@@ -81,4 +81,12 @@ exec (Write expr : stmts) dict input =
    
 instance Parse Statement where
   parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt
-  toString = error "Statement.toString not implemented"
+  toString (Assignment var expr) = var ++ " := " ++ Expr.toString expr ++ ";\n"
+  toString Skip = "skip;\n"
+  toString (Begin stmts) = "begin\n" ++ concatMap toString stmts ++ "end\n"
+  toString (If cond thenStmt elseStmt) =
+    "if " ++ Expr.toString cond ++ " then\n" ++ toString thenStmt ++ "else\n" ++ toString elseStmt
+  toString (While cond stmt) =
+    "while " ++ Expr.toString cond ++ " do\n" ++ toString stmt
+  toString (Read var) = "read " ++ var ++ ";\n"
+  toString (Write expr) = "write " ++ Expr.toString expr ++ ";\n"
