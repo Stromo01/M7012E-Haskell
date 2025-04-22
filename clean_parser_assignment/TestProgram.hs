@@ -37,10 +37,10 @@ p2 = fromString  ("\
 \read n;\
 \s := 0;\
 \repeat\
-\begin\
-\s := s + n;\
-\n := n - 1;\
-\end\
+\   begin\
+\       s := s + n;\
+\       n := n - 1;\
+\   end\n\
 \until (0-n)+1;\
 \write s;")
 

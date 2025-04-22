@@ -18,7 +18,7 @@ data Statement
   | While Expr.T Statement -- 'while' expr 'do' statement
   | Read String -- 'read' variable ';'
   | Write Expr.T -- 'write' expr ';'
-  | Repeat [Statement] Expr.T -- 'repeat' statements 'until' expr ';'
+  | Repeat Statement Expr.T -- 'repeat' statements 'until' expr ';'
   deriving (Show)
 
 newtype Statements = Statements [Statement] deriving (Show)
@@ -26,13 +26,17 @@ newtype Statements = Statements [Statement] deriving (Show)
 assignment :: Parser Statement
 assignment = word #- accept ":=" # Expr.parse #- require ";" >-> buildAss
 
+buildAss :: (String, Expr.T) -> Statement
 buildAss (v, e) = Assignment v e
 
 skipStmt :: Parser Statement
 skipStmt = accept "skip" -# require ";" >-> const Skip
 
 beginStmt :: Parser Statement
-beginStmt = accept "begin" -# iter parse #- require "end" >-> Begin
+beginStmt = accept "begin" -# iter parse #- require "end" >-> beginSequence
+
+beginSequence :: [Statement] -> Statement
+beginSequence = Begin
 
 ifStmt :: Parser Statement
 ifStmt = (accept "if" -# Expr.parse #- require "then" # parse #- require "else" # parse) >-> buildIf
@@ -53,10 +57,10 @@ writeStmt :: Parser Statement
 writeStmt = accept "write" -# Expr.parse #- require ";" >-> Write
 
 repeatStmt :: Parser Statement
-repeatStmt = (accept "repeat" -# iter parse #- require "until" # Expr.parse) >-> buildRepeat
+repeatStmt = (accept "repeat" -# parse #- require "until" # Expr.parse #- require ";") >-> buildRepeat
 
-buildRepeat :: ([Statement], Expr.T) -> Statement
-buildRepeat (stmts, cond) = Repeat stmts cond
+buildRepeat :: (Statement, Expr.T) -> Statement
+buildRepeat (stmt, cond) = Repeat stmt cond
 
 exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
 exec [] _ _ = []
@@ -86,11 +90,7 @@ exec (Write expr : stmts) dict input =
   let value = Expr.value expr dict
    in value : exec stmts dict input -- output the value and continue with the next statement
 
-exec (Repeat stmts cond : rest) dict input =
-  let value = Expr.value cond dict
-   in if value > 0
-        then exec (stmts ++ Repeat stmts cond : rest) dict input -- execute the statements and check the condition again
-        else exec rest dict input -- condition is false, continue with the next statement
+exec (Repeat stmts cond : rest) dict input = exec ([stmts] ++ [If cond Skip (Repeat (Begin [stmts]) cond)] ++ rest) dict input
 
    
 instance Parse Statement where
@@ -105,4 +105,4 @@ instance Parse Statement where
   toString (Read var) = "read " ++ var ++ ";\n"
   toString (Write expr) = "write " ++ Expr.toString expr ++ ";\n"
   toString (Repeat stmts cond) =
-    "repeat\n" ++ concatMap toString stmts ++ "until " ++ Expr.toString cond ++ ";\n"
+    "repeat\n" ++ toString stmts ++ "until" ++ Expr.toString cond ++ "\n"
