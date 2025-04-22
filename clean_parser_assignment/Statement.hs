@@ -33,10 +33,10 @@ skipStmt :: Parser Statement
 skipStmt = accept "skip" -# require ";" >-> const Skip
 
 beginStmt :: Parser Statement
-beginStmt = accept "begin" -# iter parse #- require "end" >-> beginSequence
+beginStmt = accept "begin" -# iter parse #- require "end" >-> Begin
 
-beginSequence :: [Statement] -> Statement
-beginSequence = Begin
+--beginSequence :: [Statement] -> Statement
+--beginSequence = Begin
 
 ifStmt :: Parser Statement
 ifStmt = (accept "if" -# Expr.parse #- require "then" # parse #- require "else" # parse) >-> buildIf
