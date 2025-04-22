@@ -33,10 +33,7 @@ skipStmt :: Parser Statement
 skipStmt = accept "skip" -# require ";" >-> const Skip
 
 beginStmt :: Parser Statement
-beginStmt = accept "begin" -# iter parse #- require "end" >-> beginSequence
-
-beginSequence :: [Statement] -> Statement
-beginSequence = Begin
+beginStmt = accept "begin" -# iter parse #- require "end" >-> Begin
 
 ifStmt :: Parser Statement
 ifStmt = (accept "if" -# Expr.parse #- require "then" # parse #- require "else" # parse) >-> buildIf
@@ -90,7 +87,9 @@ exec (Write expr : stmts) dict input =
   let value = Expr.value expr dict
    in value : exec stmts dict input -- output the value and continue with the next statement
 
-exec (Repeat stmts cond : rest) dict input = exec ([stmts] ++ [If cond Skip (Repeat (Begin [stmts]) cond)] ++ rest) dict input
+exec (Repeat stmts cond : rest) dict input =
+  let repeatBlock = [stmts] ++ [If cond Skip (Repeat (Begin [stmts]) cond)] ++ rest
+   in exec repeatBlock dict input
 
    
 instance Parse Statement where
