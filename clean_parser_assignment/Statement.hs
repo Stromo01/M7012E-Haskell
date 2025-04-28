@@ -23,37 +23,37 @@ data Statement
 
 newtype Statements = Statements [Statement] deriving (Show)
 
-assignment :: Parser Statement
+assignment :: Parser Statement -- variable ':=' expr ';'
 assignment = word #- accept ":=" # Expr.parse #- require ";" >-> buildAss
 
 buildAss :: (String, Expr.T) -> Statement
 buildAss (v, e) = Assignment v e
 
-skipStmt :: Parser Statement
+skipStmt :: Parser Statement -- 'skip' ';'
 skipStmt = accept "skip" -# require ";" >-> const Skip
 
-beginStmt :: Parser Statement
+beginStmt :: Parser Statement -- 'begin' statements 'end'
 beginStmt = accept "begin" -# iter parse #- require "end" >-> Begin
 
-ifStmt :: Parser Statement
+ifStmt :: Parser Statement -- 'if' expr 'then' statement 'else' statement
 ifStmt = (accept "if" -# Expr.parse #- require "then" # parse #- require "else" # parse) >-> buildIf
 
-buildIf :: ((Expr.T, Statement), Statement) -> Statement
+buildIf :: ((Expr.T, Statement), Statement) -> Statement -- ((expr, thenStmt), elseStmt) -> If expr thenStmt elseStmt
 buildIf ((cond, thenStmts), elseStmts) = If cond thenStmts elseStmts
 
-whileStmt :: Parser Statement
+whileStmt :: Parser Statement -- 'while' expr 'do' statement
 whileStmt = (accept "while" -# Expr.parse #- require "do" # parse) >-> buildWhile
 
 buildWhile :: (Expr.T, Statement) -> Statement
 buildWhile (cond, stmt) = While cond stmt
 
-readStmt :: Parser Statement
+readStmt :: Parser Statement -- 'read' variable ';'
 readStmt = accept "read" -# word #- require ";" >-> Read
 
-writeStmt :: Parser Statement
+writeStmt :: Parser Statement -- 'write' expr ';'
 writeStmt = accept "write" -# Expr.parse #- require ";" >-> Write
 
-repeatStmt :: Parser Statement
+repeatStmt :: Parser Statement -- 'repeat' statements 'until' expr ';'
 repeatStmt = (accept "repeat" -# parse #- require "until" # Expr.parse #- require ";") >-> buildRepeat
 
 buildRepeat :: (Statement, Expr.T) -> Statement
@@ -63,7 +63,7 @@ exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
 exec [] _ _ = []
 
 exec (If cond thenStmts elseStmts : stmts) dict input =
-  if Expr.value cond dict > 0
+  if Expr.value cond dict > 0                 -- condition is true
     then exec (thenStmts : stmts) dict input
     else exec (elseStmts : stmts) dict input
 
@@ -92,8 +92,8 @@ exec (Repeat stmt cond : stmts) dict input =
 
 
 instance Parse Statement where
-  parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt ! repeatStmt
-  toString (Assignment var expr) = var ++ " := " ++ Expr.toString expr ++ ";\n"
+  parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt ! repeatStmt -- parse all statements
+  toString (Assignment var expr) = var ++ " := " ++ Expr.toString expr ++ ";\n" 
   toString Skip = "skip;\n"
   toString (Begin stmts) = "begin\n" ++ concatMap toString stmts ++ "end\n"
   toString (If cond thenStmt elseStmt) =

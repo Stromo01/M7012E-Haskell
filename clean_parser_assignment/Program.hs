@@ -5,7 +5,7 @@ import Parser hiding (T)
 import Statement qualified
 import Prelude hiding (fail, return)
 
-newtype T = Program [Statement.T] -- to be defined
+newtype T = Program [Statement.T] -- Program [Statement]
 
 instance Parse T where
   parse = iter Statement.parse >-> Program

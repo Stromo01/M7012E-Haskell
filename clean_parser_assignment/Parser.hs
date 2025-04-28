@@ -48,7 +48,7 @@ m #- n = (m # n) >-> fst
 spaces :: Parser String -- Accepts any number of spaces
 spaces = iter (char ? isSpace)
 
-token :: Parser a -> Parser a
+token :: Parser a -> Parser a -- Accepts a token and ignores spaces
 token m = m #- spaces
 
 letter :: Parser Char -- Accepts any letter
