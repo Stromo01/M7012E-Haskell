@@ -63,7 +63,7 @@ exec :: [T] -> Dictionary.T String Integer -> [Integer] -> [Integer]
 exec [] _ _ = []
 
 exec (If cond thenStmts elseStmts : stmts) dict input =
-  if (Expr.value cond dict) > 0
+  if Expr.value cond dict > 0
     then exec (thenStmts : stmts) dict input
     else exec (elseStmts : stmts) dict input
 
@@ -87,11 +87,10 @@ exec (Write expr : stmts) dict input =
   let value = Expr.value expr dict
    in value : exec stmts dict input -- output the value and continue with the next statement
 
-exec (Repeat stmts cond : rest) dict input =
-  let repeatBlock = [stmts] ++ [If cond Skip (Repeat (Begin [stmts]) cond)] ++ rest
-   in exec repeatBlock dict input
+exec (Repeat stmt cond : stmts) dict input =
+  exec (stmt : If cond Skip (Repeat stmt cond) : stmts) dict input
 
-   
+
 instance Parse Statement where
   parse = assignment ! skipStmt ! beginStmt ! ifStmt ! whileStmt ! readStmt ! writeStmt ! repeatStmt
   toString (Assignment var expr) = var ++ " := " ++ Expr.toString expr ++ ";\n"
